@@ -5,15 +5,18 @@ This project provides a MongoDB assistant using Google's ADK (AI Development Kit
 ## Setup
 
 1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   # or with uv
+   ```bash   
    uv sync
    ```
 
 2. **Configure MongoDB Connection:**
 
    Create a `.env` file in the project root with your MongoDB connection string:
+
+   ```env
+   GOOGLE_GENAI_USE_VERTEXAI=FALSE
+   GOOGLE_API_KEY=
+   ```
 
    ```env
    # Get this from your MongoDB Atlas cluster connection string
@@ -31,7 +34,7 @@ This project provides a MongoDB assistant using Google's ADK (AI Development Kit
 
 3. **Run the agent:**
    ```bash
-   python -m src.agent
+   adk web
    ```
 
 ## What was fixed
