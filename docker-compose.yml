@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  multi-database-agent:
+    build: .
+    ports:
+      - "8000:8000"  # FastAPI server
+      - "8501:8501"  # Streamlit UI
+    environment:
+      - MDB_MCP_CONNECTION_STRING=${MDB_MCP_CONNECTION_STRING}
+      - ORACLE_MCP_CONNECTION_STRING=${ORACLE_MCP_CONNECTION_STRING}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_GENAI_USE_VERTEXAI=${GOOGLE_GENAI_USE_VERTEXAI:-FALSE}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEBUG_MODE=${DEBUG_MODE:-FALSE}
+      - MAX_QUERY_RESULTS=${MAX_QUERY_RESULTS:-1000}
+      - QUERY_TIMEOUT=${QUERY_TIMEOUT:-60}
+      - ENABLE_AUTHENTICATION=${ENABLE_AUTHENTICATION:-FALSE}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - multi-db-network
+
+  # Optional: MongoDB for local development
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-admin}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-password}
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE:-testdb}
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - multi-db-network
+    profiles:
+      - development
+
+  # Optional: Oracle XE for local development
+  oracle:
+    image: container-registry.oracle.com/database/express:21.3.0-xe
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PWD=${ORACLE_PASSWORD:-password}
+      - ORACLE_CHARACTERSET=AL32UTF8
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+    networks:
+      - multi-db-network
+    profiles:
+      - development
+
+  # Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - multi-database-agent
+    networks:
+      - multi-db-network
+    profiles:
+      - production
+
+volumes:
+  mongodb_data:
+  oracle_data:
+
+networks:
+  multi-db-network:
+    driver: bridge
